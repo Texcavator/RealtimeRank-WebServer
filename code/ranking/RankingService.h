@@ -2,6 +2,7 @@
 #include <hiredis/hiredis.h>
 #include <string>
 #include <vector>
+#include "../log/log.h"
 
 struct Item {
     std::string product_id;
@@ -20,4 +21,5 @@ public:
 
 private:
     redisContext* conn_;
+    std::string key_;   // ZSET的key
 };
