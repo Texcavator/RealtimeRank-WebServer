@@ -109,10 +109,14 @@ bool HttpConn::process() {
     if(readBuff_.ReadableBytes() <= 0) {    // 缓冲区里可以读取的字节数 <= 0
         return false;   // 处理失败 or 没收到完整请求
     }
-    else if(request_.parse(readBuff_)) {    // 解析 HTTP 请求（请求行、头部、body）
-        LOG_DEBUG("%s", request_.path().c_str());   // 打印请求路径
-        response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);   // 初始化响应对象
-    } else {
+    // else if(request_.parse(readBuff_)) {    // 解析 HTTP 请求（请求行、头部、body）
+    //     LOG_DEBUG("%s", request_.path().c_str());   // 打印请求路径
+    //     response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);   // 初始化响应对象
+    // }
+    else if (request_.path() == "/rank/top") {
+        return 
+    }
+    else {
         response_.Init(srcDir, request_.path(), false, 400);    // 解析失败
     }
 
