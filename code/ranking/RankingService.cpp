@@ -9,10 +9,19 @@ RankingService::RankingService(const std::string& host, int port)
         else LOG_ERROR("Redis connection allocation error")
         exit(1);
     }
+    InitTestData();
 }
 
 RankingService::~RankingService() {
     if (conn_) redisFree(conn_);    // 释放redis
+}
+
+// 初始化测试数据
+void RankingService::InitTestData() {
+    redisCommand(conn_, ("DEL " + key_).c_str());           // 清空旧数据
+    redisCommand(conn_, "ZADD %s %d %s", key_.c_str(), 95, "1001");
+    redisCommand(conn_, "ZADD %s %d %s", key_.c_str(), 90, "1002");
+    redisCommand(conn_, "ZADD %s %d %s", key_.c_str(), 85, "1003");
 }
 
 void RankingService::updateScore(int product_id, int count) {
@@ -25,7 +34,25 @@ void RankingService::updateScore(int product_id, int count) {
     freeReplyObject(reply);
 }
 
-std::vector<Item> RankingService::getTopN(int n) {
+std::string RankingService::BuildRankJson(const std::vector<Item>& items) {
+    std::string json = "[";  // JSON 数组开头
+
+    for (size_t i = 0; i < items.size(); ++i) {
+        json += "{";
+        json += "\"user\":\"" + items[i].product_id + "\",";
+        json += "\"score\":" + std::to_string(items[i].score);
+        json += "}";
+
+        if (i != items.size() - 1) {
+            json += ",";  // 每个对象之间加逗号
+        }
+    }
+
+    json += "]";  // JSON 数组结尾
+    return json;
+}
+
+std::string RankingService::getTopN(int n) {
     std::vector<Item> result;
     redisReply* reply = (redisReply*)redisCommand(conn_, "ZREVRANGE %s 0 %d WITHSCORES",
                                                   key_.c_str(), n - 1);
@@ -39,7 +66,7 @@ std::vector<Item> RankingService::getTopN(int n) {
         }
     }
     freeReplyObject(reply);
-    return result;
+    return BuildRankJson(result);
 }
 
 int RankingService::getRank(int product_id) {

@@ -18,6 +18,7 @@
 #include "../buffer/buffer.h"
 #include "httprequest.h"
 #include "httpresponse.h"
+#include "../ranking/RankingService.h"
 
 class HttpConn {
 public:
@@ -42,6 +43,8 @@ public:
     sockaddr_in GetAddr() const;
     
     bool process();
+
+    bool HandleRankTop();
 
     // 返回还有多少字节没写
     int ToWriteBytes() { 

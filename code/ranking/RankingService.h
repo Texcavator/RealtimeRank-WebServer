@@ -15,9 +15,11 @@ public:
     ~RankingService();
 
     void updateScore(int product_id, int count);
-    std::vector<Item> getTopN(int n);
+    std::string getTopN(int n);
+    std::string BuildRankJson(const std::vector<Item>& items);
     int getRank(int product_id);
     std::vector<Item> getRange(int start, int end);
+    void InitTestData();
 
 private:
     redisContext* conn_;

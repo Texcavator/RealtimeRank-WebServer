@@ -20,13 +20,17 @@ public:
     HttpResponse();
     ~HttpResponse();
 
-    void Init(const std::string& srcDir, std::string& path, bool isKeepAlive = false, int code = -1);
+    void Init(const std::string& srcDir, const std::string& path, bool isKeepAlive = false, int code = -1);
     void MakeResponse(Buffer& buff);
     void UnmapFile();
     char* File();
     size_t FileLen() const;
     void ErrorContent(Buffer& buff, std::string message);
     int Code() const { return code_; }
+    void SetBody(const std::string& body);
+    const int BodyLen();
+
+    const char *Body() const;
 
 private:
     void AddStateLine_(Buffer &buff);
@@ -44,6 +48,8 @@ private:
     
     char* mmFile_;              // 映射到内存后的文件内容
     struct stat mmFileStat_;    // 文件信息
+
+    std::string body_;          // 动态设置的响应体
 
     static const std::unordered_map<std::string, std::string> SUFFIX_TYPE;  // 文件后缀->Content-Type（决定如何显示内容） 映射
     static const std::unordered_map<int, std::string> CODE_STATUS;          // 状态码->状态描述 映射

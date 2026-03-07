@@ -9,6 +9,7 @@ using namespace std;
 const char* HttpConn::srcDir;
 std::atomic<int> HttpConn::userCount;
 bool HttpConn::isET;
+static RankingService rankingService;
 
 HttpConn::HttpConn() { 
     fd_ = -1;
@@ -109,12 +110,16 @@ bool HttpConn::process() {
     if(readBuff_.ReadableBytes() <= 0) {    // 缓冲区里可以读取的字节数 <= 0
         return false;   // 处理失败 or 没收到完整请求
     }
-    // else if(request_.parse(readBuff_)) {    // 解析 HTTP 请求（请求行、头部、body）
-    //     LOG_DEBUG("%s", request_.path().c_str());   // 打印请求路径
-    //     response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);   // 初始化响应对象
-    // }
-    else if (request_.path() == "/rank/top") {
-        return 
+    else if(request_.parse(readBuff_)) {    // 解析 HTTP 请求（请求行、头部、body）
+        LOG_DEBUG("%s", request_.path().c_str());   // 打印请求路径
+        if (request_.path() == "/rank/top") {
+            std::string json = rankingService.getTopN(10);
+            response_.Init(srcDir, "", request_.IsKeepAlive(), 200);
+            response_.SetBody(json);
+        }
+        else  {
+            response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);   // 初始化响应对象
+        }
     }
     else {
         response_.Init(srcDir, request_.path(), false, 400);    // 解析失败
@@ -131,6 +136,10 @@ bool HttpConn::process() {
     if(response_.FileLen() > 0  && response_.File()) {
         iov_[1].iov_base = response_.File();
         iov_[1].iov_len = response_.FileLen();
+        iovCnt_ = 2;
+    } else if (response_.BodyLen() > 0) {
+        iov_[1].iov_base = const_cast<char*>(response_.Body());
+        iov_[1].iov_len = response_.BodyLen();
         iovCnt_ = 2;
     }
     LOG_DEBUG("filesize:%d, %d  to %d", response_.FileLen() , iovCnt_, ToWriteBytes());

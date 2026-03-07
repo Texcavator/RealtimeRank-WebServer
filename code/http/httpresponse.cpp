@@ -58,7 +58,7 @@ HttpResponse::~HttpResponse() {
 }
 
 // 初始化
-void HttpResponse::Init(const string& srcDir, string& path, bool isKeepAlive, int code){
+void HttpResponse::Init(const string& srcDir, const string& path, bool isKeepAlive, int code){
     assert(srcDir != "");
     if(mmFile_) { UnmapFile(); }
     code_ = code;
@@ -71,26 +71,35 @@ void HttpResponse::Init(const string& srcDir, string& path, bool isKeepAlive, in
 
 // 根据请求的路径准备HTTP响应，把状态码、头信息和内容写入buffer
 void HttpResponse::MakeResponse(Buffer& buff) {
-    // 文件不存在在or是一个目录 -> 返回404
-    // (srcDir_ + path_) 是请求的完整路径
-    // stat()用于获取文件信息，返回<0表示文件不存在或无法访问
-    // S_ISDIR(mmFileStat_.st_mode) 判断路径是否是一个目录
-    // mmFileStat_.st_mode存储文件类型和权限
-    if(stat((srcDir_ + path_).data(), &mmFileStat_) < 0 || S_ISDIR(mmFileStat_.st_mode)) {
-        code_ = 404;
+    if (!body_.empty())
+    {
+        AddStateLine_(buff);
+        AddHeader_(buff);
+        buff.Append(body_);
     }
-    // 没有其他用户可读权限，不能给客户端访问
-    else if(!(mmFileStat_.st_mode & S_IROTH)) {
-        code_ = 403;
+    else
+    {
+        // 文件不存在在or是一个目录 -> 返回404
+        // (srcDir_ + path_) 是请求的完整路径
+        // stat()用于获取文件信息，返回<0表示文件不存在或无法访问
+        // S_ISDIR(mmFileStat_.st_mode) 判断路径是否是一个目录
+        // mmFileStat_.st_mode存储文件类型和权限
+        if(stat((srcDir_ + path_).data(), &mmFileStat_) < 0 || S_ISDIR(mmFileStat_.st_mode)) {
+            code_ = 404;
+        }
+        // 没有其他用户可读权限，不能给客户端访问
+        else if(!(mmFileStat_.st_mode & S_IROTH)) {
+            code_ = 403;
+        }
+        // 没设置状态码，一切正常
+        else if(code_ == -1) { 
+            code_ = 200; 
+        }
+        ErrorHtml_();           // 处理错误页面
+        AddStateLine_(buff);    // 写状态行
+        AddHeader_(buff);       // 写响应头前半部分
+        AddContent_(buff);      // 写响应头后半部分，把文件内容映射到内存
     }
-    // 没设置状态码，一切正常
-    else if(code_ == -1) { 
-        code_ = 200; 
-    }
-    ErrorHtml_();           // 处理错误页面
-    AddStateLine_(buff);    // 写状态行
-    AddHeader_(buff);       // 写响应头前半部分
-    AddContent_(buff);      // 写响应头后半部分，把文件内容映射到内存
 }
 
 // 返回文件内容
@@ -135,8 +144,18 @@ void HttpResponse::AddHeader_(Buffer& buff) {
     } else{
         buff.Append("close\r\n");
     }
-    // 文件类型
-    buff.Append("Content-type: " + GetFileType_() + "\r\n");
+
+    // 如果动态传入body，在此直接写Content-length
+    if (!body_.empty())
+    {
+        buff.Append("Content-type: application/json\r\n");
+        buff.Append("Content-Length: " + std::to_string(body_.size()) + "\r\n\r\n");
+    }
+    else
+    {   
+        // 文件类型
+        buff.Append("Content-type: " + GetFileType_() + "\r\n");
+    }
 }
 
 // 写响应头的Content-length，把文件内容映射到内存
@@ -212,4 +231,20 @@ void HttpResponse::ErrorContent(Buffer& buff, string message)
     buff.Append("Content-length: " + to_string(body.size()) + "\r\n\r\n");
     // 写响应体
     buff.Append(body);
+}
+
+// 设置响应体
+void HttpResponse::SetBody(const std::string &body)
+{
+    body_ = body;
+}
+
+const int HttpResponse::BodyLen()
+{
+    return body_.size();
+}
+
+const char* HttpResponse::Body() const 
+{ 
+    return body_.c_str();
 }

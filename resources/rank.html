@@ -1,26 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <title>排行榜</title>
 </head>
 <body>
+    <h1>排行榜</h1>
+    <ul id="rankList"></ul>
 
-<h1>排行榜</h1>
-<ul id="rankList"></ul>
-
-<script>
-fetch("/rank/top")
-    .then(response => response.json())
-    .then(data => {
-        let ul = document.getElementById("rankList");
-        data.forEach(item => {
-            let li = document.createElement("li");
-            li.innerText = item.user + " : " + item.score;
-            ul.appendChild(li);
+    <script>
+        // 请求后端 JSON 接口
+        fetch('/rank/top')
+        .then(response => response.json())
+        .then(data => {
+            const ul = document.getElementById('rankList');
+            data.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item.user + " : " + item.score;
+                ul.appendChild(li);
+            });
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            document.getElementById('rankList').textContent = '加载失败';
         });
-    });
-</script>
-
+    </script>
 </body>
 </html>
