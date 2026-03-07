@@ -31,6 +31,7 @@ public:
     const int BodyLen();
 
     const char *Body() const;
+    void CleanBody();
 
 private:
     void AddStateLine_(Buffer &buff);

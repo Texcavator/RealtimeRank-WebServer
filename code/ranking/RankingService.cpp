@@ -26,7 +26,7 @@ void RankingService::InitTestData() {
 
 void RankingService::updateScore(int product_id, int count) {
     // Redis ZSET的成员
-    std::string member = "product_" + std::to_string(product_id);
+    std::string member = std::to_string(product_id);
     // redisCommand: 通过Redis连接conn_发命令
     redisReply* reply = (redisReply*)redisCommand(conn_, "ZINCRBY %s %d %s",
                                                   key_.c_str(), count, member.c_str());

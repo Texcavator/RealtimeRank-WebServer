@@ -9,7 +9,7 @@ using namespace std;
 const char* HttpConn::srcDir;
 std::atomic<int> HttpConn::userCount;
 bool HttpConn::isET;
-static RankingService rankingService;
+extern RankingService rankingService;
 
 HttpConn::HttpConn() { 
     fd_ = -1;
@@ -107,17 +107,22 @@ ssize_t HttpConn::write(int* saveErrno) {
 // 处理 HTTP 请求并生成响应（处理buffer的数据）
 bool HttpConn::process() {
     request_.Init();    // 重置request对象，清空之前的状态
+    response_.UnmapFile();           // 清掉任何旧文件映射
+    writeBuff_.RetrieveAll();        // 清空写缓冲区
+    response_.CleanBody();
     if(readBuff_.ReadableBytes() <= 0) {    // 缓冲区里可以读取的字节数 <= 0
         return false;   // 处理失败 or 没收到完整请求
     }
     else if(request_.parse(readBuff_)) {    // 解析 HTTP 请求（请求行、头部、body）
         LOG_DEBUG("%s", request_.path().c_str());   // 打印请求路径
+        LOG_DEBUG("%s", srcDir);   // 打印srcDir
         if (request_.path() == "/rank/top") {
             std::string json = rankingService.getTopN(10);
             response_.Init(srcDir, "", request_.IsKeepAlive(), 200);
             response_.SetBody(json);
         }
         else  {
+            LOG_DEBUG("进入html的请求了");
             response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);   // 初始化响应对象
         }
     }
@@ -127,17 +132,22 @@ bool HttpConn::process() {
 
     // 生成响应数据，写入写缓冲区
     response_.MakeResponse(writeBuff_);
+    iovCnt_ = 0;
+    iov_[0].iov_base = nullptr;
+    iov_[0].iov_len  = 0;
+    iov_[1].iov_base = nullptr;
+    iov_[1].iov_len  = 0;
     /* 响应头 */
     iov_[0].iov_base = const_cast<char*>(writeBuff_.Peek());
     iov_[0].iov_len = writeBuff_.ReadableBytes();
     iovCnt_ = 1;    // 当前只有一个缓冲区
 
     // 如果有文件内容，也加入iovec
-    if(response_.FileLen() > 0  && response_.File()) {
+    if(response_.BodyLen() == 0) {
         iov_[1].iov_base = response_.File();
         iov_[1].iov_len = response_.FileLen();
         iovCnt_ = 2;
-    } else if (response_.BodyLen() > 0) {
+    } else {
         iov_[1].iov_base = const_cast<char*>(response_.Body());
         iov_[1].iov_len = response_.BodyLen();
         iovCnt_ = 2;

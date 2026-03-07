@@ -73,12 +73,14 @@ void HttpResponse::Init(const string& srcDir, const string& path, bool isKeepAli
 void HttpResponse::MakeResponse(Buffer& buff) {
     if (!body_.empty())
     {
+        LOG_DEBUG("body内有内容");
         AddStateLine_(buff);
         AddHeader_(buff);
         buff.Append(body_);
     }
     else
     {
+        LOG_DEBUG("body内没有内容");
         // 文件不存在在or是一个目录 -> 返回404
         // (srcDir_ + path_) 是请求的完整路径
         // stat()用于获取文件信息，返回<0表示文件不存在或无法访问
@@ -247,4 +249,9 @@ const int HttpResponse::BodyLen()
 const char* HttpResponse::Body() const 
 { 
     return body_.c_str();
+}
+
+void HttpResponse::CleanBody()
+{
+    body_ = "";
 }
